@@ -56,6 +56,7 @@ phase_backup_db() {
 import sqlite3, os, glob
 targets = [os.path.expanduser("~/.hermes/state.db")]
 targets += glob.glob(os.path.expanduser("~/.hermes/profiles/*/state.db"))
+targets += glob.glob(os.path.expanduser("~/.hermes/cron/*.db"))  # executions/deliveries/notepad — scheduler crash source if skipped
 for db in targets:
     if not os.path.exists(db):
         continue
@@ -120,7 +121,9 @@ done
 # 4d. Inside every state.db (cron prompts, memory, system prompts, messages)
 python3 - <<PY
 import sqlite3, glob, os
-dbs = [os.path.expanduser("~/.hermes/state.db")] + glob.glob(os.path.expanduser("~/.hermes/profiles/*/state.db"))
+dbs = [os.path.expanduser("~/.hermes/state.db")]
+dbs += glob.glob(os.path.expanduser("~/.hermes/profiles/*/state.db"))
+dbs += glob.glob(os.path.expanduser("~/.hermes/cron/*.db"))
 total = 0
 skip_suffix = ("_fts", "_data", "_idx", "_docsize", "_config", "_content")
 for db in dbs:

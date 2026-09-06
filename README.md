@@ -21,6 +21,8 @@ Migrating Hermes is not `rsync -a`. Known traps — all solved in this repo:
 | Raw-copying a live `state.db` | `database disk image is malformed` | sqlite **backup API** (`src.backup(dst)`) + integrity check |
 | Replacing `state.db` under a running gateway | "state database file was replaced underneath this process" → unwritten messages diverted to `sessions/*.jsonl` | Stop dest services → replace → restart |
 | Copying the `venv` | Absolute paths point at the old server; silent breakage | Never migrate venv; rebuild on target: `python3 -m venv venv && pip install -e .` |
+| Ignoring `~/.hermes/cron/*.db` (executions/deliveries/notepad) | Cron-scheduler thread crashes (`gateway-crash ... database disk image is malformed`) and never recovers; zero jobs fire | Same sqlite backup API treatment as state.db — phase 2 covers them |
+| Unpinned cron jobs after provider/config change | Jobs refuse to spend: `drift_skip:silent` — scheduler alive but nothing runs | Pin each job: `hermes cron edit <id> --provider <p> --model <m>` |
 | Rewriting only file paths | Cron prompts, memories and system prompts keep the old path **inside the database** | SQL `replace()` sweep across every text column of every table |
 | systemd `--user` without linger | Services die on logout | `loginctl enable-linger $USER` |
 | Leaving the source server running | Two gateways fight over the same Telegram/WhatsApp session | Stop + **disable** source services, take crontab offline |
@@ -59,7 +61,7 @@ See [`skill/hermes-server-migration/SKILL.md`](skill/hermes-server-migration/SKI
 |-----------|----------|-------|
 | `~/.hermes/state.db` (messages, memory, sessions, FTS index) | ✅ | via sqlite backup API |
 | `profiles/` (per-profile state.db + config + skills) | ✅ | each integrity-checked — **common miss:** the main `state.db` can be fine while every profile DB is malformed; the script backs up and verifies all of them (phase 2) |
-| `cron/jobs.json` (all scheduled tasks) | ✅ | + path rewrite |
+| `cron/` — jobs.json **and** executions/deliveries/notepad DBs | ✅ | DBs via backup API; scheduler crashes without them |
 | `skills/`, `notes/`, `SOUL.md`, `config.yaml` | ✅ | |
 | Telegram/WhatsApp session tokens | ✅ | live in the DB; auto-reconnect after restart |
 | `hermes-agent/venv/` | ❌ on purpose | rebuilt on target — phase 5 |

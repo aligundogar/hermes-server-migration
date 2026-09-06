@@ -100,6 +100,42 @@ systemctl --user enable --now hermes-dashboard hermes-gateway hermes-gateway-*
 - `journalctl --user -u hermes-gateway | grep "Connected to Telegram"` → bot başına 1
 - `grep -rc ESKI_HOME` aktif dosyalarda → 0
 
+## Faz 2 eki — Cron DB'leri (executions/deliveries/notepad)
+
+`~/.hermes/cron/` altında sadece jobs.json DEĞİL, üç sqlite DB daha var.
+Bunlar backup API'den geçmezse: cron-scheduler thread'i
+`gateway-crash ... database disk image is malformed` ile çöker ve BİR DAHA
+başlamaz — hiçbir job çalışmaz, çıktı da üretilmez. Main + profil state.db
+sağlam olsa bile bunları ayrıca kontrol et:
+
+```bash
+for db in ~/.hermes/cron/*.db; do
+  python3 -c "import sqlite3; print('$db', sqlite3.connect('$db').execute('PRAGMA integrity_check').fetchone()[0])"
+done
+```
+
+## Migration sonrası: drift_skip (job'lar sessizce atlanıyor)
+
+Migrasyon sonrası global inference config değişirse (provider/model), pin'siz
+cron job'ları `drift_skip:silent` ile atlar — scheduler sağlıklı görünür ama
+hiçbir iş yapılmaz. Çıktı dosyasında şu imza vardır:
+
+```
+RuntimeError: [drift_skip:silent] Skipped to prevent unintended spend:
+global inference config drifted since this job was created ...
+```
+
+Çözüm — her job'ı istenen config'e pinle:
+
+```bash
+for ID in $(python3 -c "import json; print(' '.join(j['id'] for j in json.load(open('~/.hermes/cron/jobs.json'))['jobs']))"); do
+  hermes cron edit "$ID" --provider openrouter --model minimax/minimax-m3:free
+done
+```
+
+Doğrulama: bir sonraki tetiklemede çıktı dosyası `(FAILED)`/`drift_skip`
+içermemeli.
+
 ## Bilinen özel durumlar
 
 - **"state database file was replaced underneath this process"**: DB'yi çalışan
