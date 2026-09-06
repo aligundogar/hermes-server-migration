@@ -58,7 +58,7 @@ See [`skill/hermes-server-migration/SKILL.md`](skill/hermes-server-migration/SKI
 | Component | Migrated | Notes |
 |-----------|----------|-------|
 | `~/.hermes/state.db` (messages, memory, sessions, FTS index) | ✅ | via sqlite backup API |
-| `profiles/` (per-profile state.db + config + skills) | ✅ | each integrity-checked |
+| `profiles/` (per-profile state.db + config + skills) | ✅ | each integrity-checked — **common miss:** the main `state.db` can be fine while every profile DB is malformed; the script backs up and verifies all of them (phase 2) |
 | `cron/jobs.json` (all scheduled tasks) | ✅ | + path rewrite |
 | `skills/`, `notes/`, `SOUL.md`, `config.yaml` | ✅ | |
 | Telegram/WhatsApp session tokens | ✅ | live in the DB; auto-reconnect after restart |
